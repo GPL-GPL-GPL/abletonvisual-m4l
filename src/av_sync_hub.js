@@ -386,6 +386,9 @@ function emitDebug(level, message) {
   outlet(2, payload);
   if (state.debug) {
     post("[av_sync_hub][" + level + "] " + payload + "\n");
+    if (AV.appendLog) {
+      AV.appendLog(level, "hub", payload);
+    }
   }
 }
 

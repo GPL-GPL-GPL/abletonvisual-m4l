@@ -4,8 +4,6 @@ var AV = AV || {};
   var HIT_REFRACTORY_MS = 160;
   var GATE_LEVEL_THRESHOLD = 0.055;
   var GATE_RMS_THRESHOLD = 0.045;
-  var ATTACK_FLUX_THRESHOLD = 0.16;
-  var ATTACK_LEVEL_THRESHOLD = 0.08;
   var HIT_STRENGTH_THRESHOLD = 0.18;
 
   function AudioAnalyzer() {
@@ -69,23 +67,9 @@ var AV = AV || {};
     };
 
     var events = [];
-    var attack = (!this.previous.gate && gate) || (flux > ATTACK_FLUX_THRESHOLD && level > ATTACK_LEVEL_THRESHOLD);
-    var release = this.previous.gate && !gate;
     var hitStrength = hitCandidate(level, sub, bass, flux, this.previous.bass);
     var canHit = nowMs - this.lastHitAt >= HIT_REFRACTORY_MS;
 
-    if (attack) {
-      events.push({
-        type: "attack",
-        strength: AV.clamp(level * 0.65 + flux * 0.55 + peak * 0.2, 0, 1.5)
-      });
-    }
-    if (release) {
-      events.push({
-        type: "release",
-        strength: AV.clamp(this.previous.level * 0.72, 0, 1)
-      });
-    }
     if (hitStrength > HIT_STRENGTH_THRESHOLD && canHit) {
       this.lastHitAt = nowMs;
       events.push({

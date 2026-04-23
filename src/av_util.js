@@ -82,4 +82,61 @@ var AV = AV || {};
   AV.getValue = function (api, property) {
     return AV.normalizeAtom(api.get(property));
   };
+
+  // Max's File object is available in JS context. Writing to TEMP/abletonvisual/m4l.log
+  // mirrors the Rust runtime.log so tools/tail-logs.mjs can merge both streams.
+  var LOG_PATH = "~/AppData/Local/Temp/abletonvisual/m4l.log";
+  var logFile = null;
+  var logFileReady = false;
+
+  function ensureLogFile() {
+    if (logFileReady) {
+      return logFile !== null;
+    }
+    logFileReady = true;
+    try {
+      logFile = new File(LOG_PATH, "readwrite");
+      if (!logFile.isopen) {
+        logFile = null;
+        return false;
+      }
+      logFile.position = logFile.eof;
+      return true;
+    } catch (error) {
+      logFile = null;
+      return false;
+    }
+  }
+
+  function escapeJson(s) {
+    return String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
+  }
+
+  function isoFromMs(ms) {
+    var d = new Date(ms);
+    function pad(n, w) {
+      var s = String(n);
+      while (s.length < w) s = "0" + s;
+      return s;
+    }
+    return d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1, 2) + "-" + pad(d.getUTCDate(), 2) +
+      "T" + pad(d.getUTCHours(), 2) + ":" + pad(d.getUTCMinutes(), 2) + ":" + pad(d.getUTCSeconds(), 2) +
+      "." + pad(d.getUTCMilliseconds(), 3) + "Z";
+  }
+
+  AV.appendLog = function (level, source, message) {
+    if (!ensureLogFile()) {
+      return;
+    }
+    var line = '{"t":"' + isoFromMs(AV.nowMs()) +
+      '","level":"' + escapeJson(level) +
+      '","source":"' + escapeJson(source) +
+      '","message":"' + escapeJson(message) + '"}\n';
+    try {
+      logFile.position = logFile.eof;
+      logFile.writestring(line);
+    } catch (error) {
+      // Swallow — logging must never interrupt the audio thread.
+    }
+  };
 })();

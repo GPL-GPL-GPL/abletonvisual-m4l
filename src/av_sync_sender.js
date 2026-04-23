@@ -252,36 +252,19 @@ function handleAnalysis(args) {
 
   var a = result.analysis;
   state.frameCount += 1;
-  sendOsc("/av/lane/frame", [
-    state.laneId,
-    a.level,
-    a.rms,
-    a.peak,
-    a.sub,
-    a.bass,
-    a.lowMid,
-    a.highMid,
-    a.presence,
-    a.air,
-    a.centroid,
-    a.flux,
-    a.gate,
-    a.sustain
-  ]);
 
   var i;
   for (i = 0; i < result.events.length; i++) {
     emitLaneEvent(result.events[i].type, result.events[i].strength);
   }
 
-  if (state.frameCount % 30 === 0) {
+  if (state.frameCount % 60 === 0) {
     emitStatus(
       "lane=" + state.laneName +
       " role=" + state.role +
       " frames=" + state.frameCount +
       " tx=" + state.txCount +
-      " gate=" + a.gate +
-      " sustain=" + AV.roundTo(a.sustain, 2)
+      " gate=" + a.gate
     );
   }
 
@@ -325,17 +308,10 @@ function poll() {
   }
 
   state.transportCount += 1;
-  sendOsc("/av/master/transport", [
-    AV.roundTo(result.transport.tempo, 3),
-    result.transport.isPlaying ? 1 : 0,
-    result.transport.beatPhase,
-    result.transport.barPhase
-  ]);
+  // Transport/section are no longer consumed by the renderer (hit events carry rhythm implicitly).
+  // Left in the poller for Ableton-state inspection via debug logs only.
 
-  state.sectionCount += 1;
-  sendOsc("/av/master/section", [result.section.name, result.section.progress]);
-
-  if (state.debug && state.transportCount % 16 === 0) {
+  if (state.debug && state.transportCount % 32 === 0) {
     emitDebug(
       "debug",
       "heartbeat bpm=" + AV.roundTo(result.transport.tempo, 2) +
@@ -446,6 +422,9 @@ function emitDebug(level, message) {
   outlet(2, payload);
   if (state.debug) {
     post("[av_lane_sender][" + level + "] " + payload + "\n");
+    if (AV.appendLog) {
+      AV.appendLog(level, "sender:" + (state.laneName || state.laneId || "?"), payload);
+    }
   }
 }
 
